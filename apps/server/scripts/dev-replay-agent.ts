@@ -172,11 +172,21 @@ function permissionRejectedToolCallId(request: LogicalFrame, answer: unknown): s
 }
 
 function runAgent(): void {
+  // `--transcript <file>` serves that one recording as the only model, for the scenario runner.
+  const transcriptFlag = process.argv.indexOf("--transcript");
+  const transcript = transcriptFlag === -1 ? undefined : process.argv[transcriptFlag + 1];
+  const scenarios: ReadonlyArray<{
+    readonly id: string;
+    readonly name: string;
+    readonly file: string;
+  }> =
+    transcript === undefined ? SCENARIOS : [{ id: "scenario", name: "Scenario", file: transcript }];
+  const defaultScenario = scenarios[0]!;
   const turnsByScenario = new Map<string, ReadonlyArray<ReplayTurn>>();
   const loadTurns = (scenarioId: string) => {
     const cached = turnsByScenario.get(scenarioId);
     if (cached !== undefined) return cached;
-    const scenario = SCENARIOS.find((candidate) => candidate.id === scenarioId) ?? SCENARIOS[0];
+    const scenario = scenarios.find((candidate) => candidate.id === scenarioId) ?? defaultScenario;
     const turns = parseReplayTurns(
       NodeFS.readFileSync(new URL(scenario.file, import.meta.url), "utf8"),
     );
@@ -291,12 +301,17 @@ function runAgent(): void {
         const sessionId =
           message.method === "session/load" ? String(params.sessionId) : NodeCrypto.randomUUID();
         const cwd = typeof params.cwd === "string" ? params.cwd : process.cwd();
-        sessions.set(sessionId, { cwd, model: SCENARIOS[0].id, promptCount: 0, cancel: undefined });
+        sessions.set(sessionId, {
+          cwd,
+          model: defaultScenario.id,
+          promptCount: 0,
+          cancel: undefined,
+        });
         return {
           ...(message.method === "session/new" ? { sessionId } : {}),
           models: {
-            currentModelId: SCENARIOS[0].id,
-            availableModels: SCENARIOS.map((scenario) => ({
+            currentModelId: defaultScenario.id,
+            availableModels: scenarios.map((scenario) => ({
               modelId: scenario.id,
               name: scenario.name,
             })),
@@ -305,7 +320,7 @@ function runAgent(): void {
       }
       case "session/set_model": {
         const session = sessions.get(String(params.sessionId));
-        if (!SCENARIOS.some((scenario) => scenario.id === params.modelId)) {
+        if (!scenarios.some((scenario) => scenario.id === params.modelId)) {
           throw Object.assign(new Error(`Unknown replay scenario ${String(params.modelId)}`), {
             code: -32602,
           });

@@ -31,6 +31,8 @@
         "linux-after-pack.ts",
         "mobile-behavior/run.ts",
         "mobile-native-client.ts",
+        // The scenario runner imports scenario files by path.
+        "scenarios/*.ts",
         "setup-worktree.ts",
         "sign-macos.ts",
         "prepare-server-compile-cache.cjs",
