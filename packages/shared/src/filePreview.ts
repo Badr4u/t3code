@@ -21,6 +21,7 @@ export type FilePreviewKind =
   | "markdown"
   | "mermaid"
   | "font"
+  | "stl"
   | "archive"
   | "sqlite"
   | "docx"
@@ -61,6 +62,7 @@ export function filePreviewKind(
     mime === "application/vnd.oasis.opendocument.formula-template"
   )
     return "font";
+  if (richDocuments && extension === ".stl" && (generic || STL_MIME_TYPES.has(mime))) return "stl";
   if (mime.startsWith("image/")) return "image";
   if (mime.startsWith("video/") && !generic) return "video";
   if (mime.startsWith("audio/")) return "audio";
@@ -202,6 +204,19 @@ export function isWorkspaceFontPreviewPath(path: string): boolean {
   return /\.(ttf|otf|woff2?)$/i.test(path);
 }
 
+// Windows registers .stl as a certificate trust list, and ASCII STL often reads as text/plain.
+const STL_MIME_TYPES = new Set([
+  "model/stl",
+  "model/x.stl-binary",
+  "model/x.stl-ascii",
+  "application/sla",
+  "application/vnd.ms-pki.stl",
+]);
+
+export function isWorkspaceStlPreviewPath(path: string): boolean {
+  return /\.stl$/i.test(path);
+}
+
 export function hostPreviewMimeTypeFromExtension(extension: string): string | null {
   if (!/^\.[a-z0-9-]+$/i.test(extension)) return null;
   return (
@@ -209,6 +224,7 @@ export function hostPreviewMimeTypeFromExtension(extension: string): string | nu
     audioMimeTypeFromExtension(extension) ??
     BROWSER_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ??
     FONT_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ??
+    (extension.toLowerCase() === ".stl" ? "model/stl" : null) ??
     BINARY_MIME_TYPES.get(extension.toLowerCase()) ??
     (Object.hasOwn(OFFICE_MIME_TYPES, extension.toLowerCase().slice(1))
       ? OFFICE_MIME_TYPES[extension.toLowerCase().slice(1) as OfficePreviewKind]
@@ -236,6 +252,7 @@ export function isWorkspacePreviewEntryPath(path: string): boolean {
     isWorkspaceBrowserPreviewPath(path) ||
     isWorkspaceImagePreviewPath(path) ||
     isWorkspaceFontPreviewPath(path) ||
+    isWorkspaceStlPreviewPath(path) ||
     officePreviewKind({ name: path }) !== null ||
     binaryPreviewKind({ name: path }) !== null
   );

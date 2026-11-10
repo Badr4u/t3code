@@ -190,8 +190,17 @@ describe("attachment preview classification", () => {
     ["archive.zip", "application/zip", "archive"],
     ["misleading.json", "application/pdf", "pdf"],
     ["misleading.pdf", "application/zip", "archive"],
+    ["bracket.STL", "", "stl"],
+    ["bracket.stl", "text/plain", "stl"],
+    ["bracket.stl", "model/stl", "stl"],
+    ["bracket.stl", "application/vnd.ms-pki.stl", "stl"],
+    ["bracket.stl", "application/zip", "archive"],
   ])("classifies %s (%s) as %s", (name, mimeType, expected) => {
     expect(filePreviewKind({ name, mimeType })).toBe(expected);
+  });
+  it("serves STL models as signed host previews", () => {
+    expect(isWorkspacePreviewEntryPath("parts/bracket.STL")).toBe(true);
+    expect(hostPreviewMimeTypeFromExtension(".stl")).toBe("model/stl");
   });
   it("rejects binary and invalid UTF-8 data", () => {
     expect(() => decodeFilePreviewText(new Uint8Array([65, 0, 66]))).toThrow("binary");
