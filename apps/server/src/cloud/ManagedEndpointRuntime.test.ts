@@ -341,6 +341,8 @@ describe("CloudManagedEndpointRuntime", () => {
   };
   const quicDialWarning =
     '2026-10-16T20:29:43Z ERR Failed to dial a quic connection error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=1\n';
+  const quicHandshakeWarning =
+    '2026-11-10T11:44:18Z ERR Failed to dial a quic connection error="failed to dial to edge with quic: timeout: handshake did not complete in time" connIndex=0\n';
   const quicDatagramWarning =
     '2026-10-16T20:29:41Z ERR Connection terminated error="datagram manager error: timeout: no recent network activity" connIndex=1\n';
 
@@ -514,6 +516,64 @@ describe("CloudManagedEndpointRuntime", () => {
           expect(next.spawned[1]!.args.slice(-3)).toEqual(["--protocol", "http2", "run"]);
         }).pipe(Effect.scoped);
       }),
+  );
+
+  it.effect("falls back to HTTP/2 after repeated QUIC handshake timeouts", () =>
+    Effect.gen(function* () {
+      const fixture = yield* makeTransportSpawner();
+      const runtime = yield* buildCloudManagedEndpointRuntime(fixture.spawner);
+      yield* runtime.applyConfig(tunnelConfig);
+      expect(yield* Queue.take(fixture.started)).toBe(0);
+      yield* fixture.observe(runtime, 0, quicHandshakeWarning.repeat(30));
+      const respawned = yield* Queue.take(fixture.started).pipe(
+        Effect.timeoutOption(Duration.seconds(1)),
+        Effect.forkChild,
+      );
+      yield* TestClock.adjust(Duration.seconds(1));
+      expect(yield* Fiber.join(respawned)).toEqual(Option.some(1));
+      expect(fixture.spawned[1]!.args.slice(-3)).toEqual(["--protocol", "http2", "run"]);
+    }),
+  );
+
+  it.effect("remembers cloudflared's own HTTP/2 fallback for the next start", () =>
+    Effect.gen(function* () {
+      const context = yield* Layer.build(
+        ServerSecretStore.layer.pipe(
+          Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-transport-test-" })),
+          Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+        ),
+      );
+      const secretStoreLayer = Layer.succeed(
+        ServerSecretStore.ServerSecretStore,
+        context.pipe(Context.get(ServerSecretStore.ServerSecretStore)),
+      );
+      const start = (spawner: ReturnType<typeof ChildProcessSpawner.make>) =>
+        buildCloudManagedEndpointRuntime(
+          spawner,
+          layerRelayClientAvailable,
+          unusedHttpClient,
+          secretStoreLayer,
+        );
+      yield* Effect.gen(function* () {
+        const fixture = yield* makeTransportSpawner();
+        const runtime = yield* start(fixture.spawner);
+        yield* runtime.applyConfig(tunnelConfig);
+        expect(fixture.spawned[0]!.args).not.toContain("--protocol");
+        yield* fixture.emit(
+          0,
+          quicHandshakeWarning.repeat(5) +
+            "2026-10-16T20:31:00Z INF Registered tunnel connection connIndex=0 protocol=http2\n",
+        );
+        yield* Stream.runHead(runtime.tunnelConnected);
+      }).pipe(Effect.scoped);
+
+      yield* Effect.gen(function* () {
+        const next = yield* makeTransportSpawner();
+        const restarted = yield* start(next.spawner);
+        yield* restarted.applyConfig(tunnelConfig);
+        expect(next.spawned[0]!.args.slice(-3)).toEqual(["--protocol", "http2", "run"]);
+      }).pipe(Effect.scoped);
+    }),
   );
 
   it.effect(
