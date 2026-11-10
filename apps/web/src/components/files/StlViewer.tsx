@@ -25,6 +25,8 @@ function parseStl(buffer: ArrayBuffer): StlModel {
     geometry.dispose();
     throw new Error("This STL file has no triangles.");
   }
+  // Many exporters write zero facet normals, which light as solid black.
+  geometry.computeVertexNormals();
   geometry.computeBoundingBox();
   const size = geometry.boundingBox?.getSize(new Vector3()) ?? new Vector3();
   // STL models are Z-up; three.js is Y-up.
