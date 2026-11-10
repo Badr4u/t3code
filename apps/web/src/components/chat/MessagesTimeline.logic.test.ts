@@ -700,6 +700,61 @@ describe("deriveMessagesTimelineRows", () => {
     },
   );
 
+  it("keeps two compactions in a folded turn apart from each other", () => {
+    const fixture = makeStreamingTimelineFixture("Done");
+    const [, , , liveUser, liveWork, liveAssistant] = fixture.visibleTurnItems;
+    if (
+      liveUser?.item.type !== "user_message" ||
+      liveAssistant?.item.type !== "assistant_message" ||
+      !liveWork
+    )
+      throw new Error("Expected live fixture items");
+    const at = (
+      projected: OrchestrationV2ProjectedTurnItem,
+      id: string,
+      ordinal: number,
+      item: Partial<OrchestrationV2TurnItem>,
+    ) =>
+      ({
+        ...projected,
+        position: ordinal,
+        sourceItemId: TurnItemId.make(id),
+        item: { ...projected.item, ...item, id: TurnItemId.make(id), ordinal },
+      }) as OrchestrationV2ProjectedTurnItem;
+    const compaction = { type: "compaction", driver: null, status: "completed" } as const;
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: deriveTimelineEntriesFromVisibleTurnItems({
+        visibleTurnItems: [
+          liveUser,
+          at(liveWork, "work-1", 6, {}),
+          at(liveAssistant, "compaction-1", 7, compaction),
+          at(liveWork, "work-2", 8, {}),
+          at(liveAssistant, "compaction-2", 9, compaction),
+          at(liveAssistant, "reply", 10, { streaming: false, status: "completed" }),
+        ],
+        optimisticMessages: [],
+      }),
+      isWorking: false,
+      latestRun: {
+        runId: fixture.runId,
+        status: "completed",
+        startedAt: fixture.time(5),
+        completedAt: fixture.time(11),
+      },
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+    expect(rows.filter((row) => row.kind === "turn-fold")).toHaveLength(1);
+    expect(rows.some((row) => row.kind === "work")).toBe(false);
+    // With the work between them hidden, identical dividers read as one row shown twice.
+    const shown = rows.flatMap((row) =>
+      row.kind === "context-compaction"
+        ? [JSON.stringify([row.label, row.title, row.tokenCounts, row.failed, row.failure])]
+        : [],
+    );
+    expect(new Set(shown).size).toBe(shown.length);
+  });
+
   it("folds an answered compact-on-return question into its compaction row", () => {
     const fixture = makeStreamingTimelineFixture();
     const [history0, history1, history2, liveUser, liveWork, liveAssistant] =
