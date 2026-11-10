@@ -14,7 +14,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { observeResize } from "~/lib/observeResize";
 
 /** Renders only on camera changes and resizes, so an idle model costs no frames. */
-export function mountStlScene(host: HTMLElement, geometry: BufferGeometry) {
+export function mountModelScene(host: HTMLElement, geometry: BufferGeometry) {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.domElement.className = "absolute inset-0 size-full";

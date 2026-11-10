@@ -190,17 +190,21 @@ describe("attachment preview classification", () => {
     ["archive.zip", "application/zip", "archive"],
     ["misleading.json", "application/pdf", "pdf"],
     ["misleading.pdf", "application/zip", "archive"],
-    ["bracket.STL", "", "stl"],
-    ["bracket.stl", "text/plain", "stl"],
-    ["bracket.stl", "model/stl", "stl"],
-    ["bracket.stl", "application/vnd.ms-pki.stl", "stl"],
+    ["bracket.STL", "", "model"],
+    ["bracket.stl", "text/plain", "model"],
+    ["bracket.stl", "model/stl", "model"],
+    ["bracket.stl", "application/vnd.ms-pki.stl", "model"],
     ["bracket.stl", "application/zip", "archive"],
+    ["plate.3MF", "application/octet-stream", "model"],
+    ["plate.3mf", "application/vnd.ms-package.3dmanufacturing-3dmodel+xml", "model"],
   ])("classifies %s (%s) as %s", (name, mimeType, expected) => {
     expect(filePreviewKind({ name, mimeType })).toBe(expected);
   });
-  it("serves STL models as signed host previews", () => {
+  it("serves STL and 3MF models as signed host previews", () => {
     expect(isWorkspacePreviewEntryPath("parts/bracket.STL")).toBe(true);
+    expect(isWorkspacePreviewEntryPath("plates/plate.3mf")).toBe(true);
     expect(hostPreviewMimeTypeFromExtension(".stl")).toBe("model/stl");
+    expect(hostPreviewMimeTypeFromExtension(".3mf")).toBe("model/3mf");
   });
   it("rejects binary and invalid UTF-8 data", () => {
     expect(() => decodeFilePreviewText(new Uint8Array([65, 0, 66]))).toThrow("binary");

@@ -15,7 +15,7 @@ import {
   isWorkspaceAudioPreviewPath,
   isWorkspaceImagePreviewPath,
   isWorkspaceFontPreviewPath,
-  isWorkspaceStlPreviewPath,
+  isWorkspaceModelPreviewPath,
   isWorkspaceVideoPreviewPath,
   officePreviewKind,
   binaryPreviewKind,
@@ -1048,7 +1048,7 @@ export default function FilePreviewPanel({
     (binaryPreviewKind({ name: relativePath }) !== null ||
       officePreviewKind({ name: relativePath }) !== null ||
       isWorkspaceFontPreviewPath(relativePath) ||
-      isWorkspaceStlPreviewPath(relativePath));
+      isWorkspaceModelPreviewPath(relativePath));
   const isHtml = relativePath !== null && !isPdf && isBrowserPreviewFile(relativePath);
   const isHostFile =
     attachment !== undefined || (relativePath !== null && isHostPath(relativePath));

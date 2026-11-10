@@ -47,7 +47,7 @@ const FontFilePreview = lazy(() =>
   import("./FontFilePreview").then((module) => ({ default: module.FontFilePreview })),
 );
 
-const StlViewer = lazy(() => import("./StlViewer"));
+const ModelViewer = lazy(() => import("./ModelViewer"));
 
 const MermaidFilePreview = lazy(() =>
   import("./MermaidFilePreview").then((module) => ({ default: module.MermaidFilePreview })),
@@ -320,9 +320,9 @@ export function AttachmentFilePreview(props: {
     <Suspense fallback={<FileSurfaceLoading />}>
       <FontFilePreview src={url} name={props.name} />
     </Suspense>
-  ) : kind === "stl" ? (
+  ) : kind === "model" ? (
     <Suspense fallback={<FileSurfaceLoading />}>
-      <StlViewer key={url} src={url} name={props.name} />
+      <ModelViewer key={url} src={url} name={props.name} />
     </Suspense>
   ) : officeKind ? (
     <Suspense fallback={<FileSurfaceLoading />}>
